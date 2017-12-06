@@ -170,9 +170,7 @@ def main():
     print(len(train_x))
     print(len(train_y))
 
-    # weights and biases of appropriate shape to accomplish above task
-    out_weights = tf.Variable(tf.random_normal([NUM_UNITS, FEATURE_COUNT]))
-    out_bias = tf.Variable(tf.random_normal([FEATURE_COUNT]))
+    
 
     # defining placeholders
     # input image placeholder
@@ -183,16 +181,31 @@ def main():
     # processing the input tensor from [batch_size,n_steps,n_input] to "time_steps" number of [batch_size,n_input] tensors
     input = tf.unstack(x, TIME_STEPS, 1)
 
-    lstm_layer=rnn.BasicLSTMCell(NUM_UNITS, forget_bias=1)
-    #lstm_layer2=rnn.BasicLSTMCell(NUM_UNITS, forget_bias=1)
-    #multi_cell=rnn.MultiRNNCell([lstm_layer1, lstm_layer2])
-    outputs,_=rnn.static_rnn(lstm_layer,input,dtype="float32")
+    with tf.variable_scope("rnn1"):
+        lstm_layer=rnn.BasicLSTMCell(60, forget_bias=1)
+        #lstm_layer2=rnn.BasicLSTMCell(NUM_UNITS, forget_bias=1)
+        #multi_cell=rnn.MultiRNNCell([lstm_layer1, lstm_layer2])
+        outputs,_=rnn.static_rnn(lstm_layer,input,dtype="float32")
+        
+    with tf.variable_scope("rnn2"):
+        #you can find a batch norm cell online
+        lstm_layer2=rnn.BasicLSTMCell(60, forget_bias=1)
+        outputs,_=rnn.static_rnn(lstm_layer2,outputs,dtype="float32")
+        
+        #try putting a normal BN layer here
 
-    # converting last output of dimension [batch_size,num_units] to [batch_size,n_classes] by out_weight multiplication
-    prediction = tf.matmul(outputs[-1], out_weights) + out_bias
+    with tf.variable_scope("fc1"):
+        #definately use xavier init
+        # weights and biases of appropriate shape to accomplish above task
+        out_weights = tf.Variable(tf.random_normal([NUM_UNITS, FEATURE_COUNT]))
+        out_bias = tf.Variable(tf.random_normal([FEATURE_COUNT]))
+
+        # converting last output of dimension [batch_size,num_units] to [batch_size,n_classes] by out_weight multiplication
+        prediction = tf.matmul(outputs[-1], out_weights) + out_bias
 
     # loss_function
-    loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=prediction, labels=y))
+    #try an l2 loss for regression
+    loss = tf.reduce_mean(tf.nn.l2_loss(prediction - y))
     # optimization
     opt = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(loss)
 
